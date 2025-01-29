@@ -1,54 +1,45 @@
 #include <dpp/dpp.h>
 #include <cstdlib>
 #include <dpp/presence.h>
-#include <unordered_map>
 #include <string>
-
-std::unordered_map<uint64_t, std::string> user_data; // Maps user IDs to their stored info
-
-void handle_set_command(const dpp::slashcommand_t& event) {
-    if (event.get_parameter("info").valueless_by_exception()) {
-        event.reply("Please provide some information to store.");
-        return;
-    }
-
-    std::string info = std::get<std::string>(event.get_parameter("info"));
-    user_data[event.command.usr.id] = info;
-
-    event.reply("Your information has been stored!");
-}
-
-void handle_get_command(const dpp::slashcommand_t& event) {
-    auto it = user_data.find(event.command.usr.id);
-    if (it != user_data.end()) {
-        event.reply("Your stored information: " + it->second);
-    } else {
-        event.reply("You have no stored information.");
-    }
-}
+#include "commands.h"
+#include "QWClient.h"
 
 int main() {
-	dpp::cluster bot(std::getenv("BOT_TOKEN"));
+    dpp::cluster bot(std::getenv("BOT_TOKEN"));
 
-	bot.on_slashcommand([](auto event) {
-        if (event.command.get_command_name() == "setinfo") {
+    bot.global_bulk_command_delete();
+
+
+    bot.on_slashcommand([](auto event) {
+        if (event.command.get_command_name() == "setnick") {
             handle_set_command(event);
-        } else if (event.command.get_command_name() == "getinfo") {
-            handle_get_command(event);
         }
-	});
-
-	bot.on_ready([&bot](auto event) {
-        if (dpp::run_once<struct register_bot_commands>()) {
-            bot.global_command_create(dpp::slashcommand("setinfo", "Store some information", bot.me.id)
-                .add_option(dpp::command_option(dpp::co_string, "info", "The info to store", true)));
-
-            bot.global_command_create(dpp::slashcommand("getinfo", "Retrieve your stored information", bot.me.id));
+        if (event.command.get_command_name() == "pickup") {
+            start_pickup_command(event);
         }
+    });
 
-        bot.set_presence(dpp::presence(dpp::ps_dnd, dpp::at_game, "boring with quad"));
-	});
+    bot.on_ready([&bot](auto event) {
+    if (dpp::run_once<struct register_bot_commands>()) {
+        // userinfo
+        bot.global_command_create(dpp::slashcommand("setnick", "set ingame nickname", bot.me.id)
+            .add_option(dpp::command_option(dpp::co_string, "nickname", "your nickname", true)));
+        // pickups
+        bot.global_command_create(dpp::slashcommand("pickup", "start a pickup game", bot.me.id)
+            .add_option(
+                dpp::command_option(dpp::co_string, "gamemode", "select a game mode", true)
+                .add_choice(dpp::command_option_choice("1on1", "1on1"))
+                .add_choice(dpp::command_option_choice("2on2", "2on2"))
+                .add_choice(dpp::command_option_choice("4on4", "4on4"))
+                .add_choice(dpp::command_option_choice("ffa", "ffa"))
+                .add_choice(dpp::command_option_choice("wipeout", "wipeout")))
+        );
+    }
 
-	bot.start(dpp::st_wait);
-	return 0;
+    bot.set_presence(dpp::presence(dpp::ps_dnd, dpp::at_game, "QuakeWorld"));
+    });
+
+    bot.start(dpp::st_wait);
+    return 0;
 }
