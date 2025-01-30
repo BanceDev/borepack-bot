@@ -3,7 +3,6 @@
 #include <dpp/presence.h>
 #include <string>
 #include "commands.h"
-#include "QWClient.h"
 
 int main() {
     dpp::cluster bot(std::getenv("BOT_TOKEN"));
@@ -17,6 +16,9 @@ int main() {
         }
         if (event.command.get_command_name() == "pickup") {
             start_pickup_command(event);
+        }
+        if (event.command.get_command_name() == "servers") {
+            poll_servers_command(event);
         }
     });
 
@@ -35,6 +37,7 @@ int main() {
                 .add_choice(dpp::command_option_choice("ffa", "ffa"))
                 .add_choice(dpp::command_option_choice("wipeout", "wipeout")))
         );
+        bot.global_command_create(dpp::slashcommand("servers", "get list of active servers", bot.me.id));
     }
 
     bot.set_presence(dpp::presence(dpp::ps_dnd, dpp::at_game, "QuakeWorld"));

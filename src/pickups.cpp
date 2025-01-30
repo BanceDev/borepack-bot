@@ -1,4 +1,8 @@
 #include "commands.h"
+#include <cpr/cpr.h>
+#include <dpp/appcommand.h>
+#include <dpp/nlohmann/json_fwd.hpp>
+#include <iostream>
 
 void start_pickup_command(const dpp::slashcommand_t &event) {
     if (event.get_parameter("gamemode").valueless_by_exception()) {
@@ -58,4 +62,27 @@ void start_pickup_command(const dpp::slashcommand_t &event) {
     msg.allowed_mentions.parse_roles = true;
 
     event.reply(dpp::interaction_response_type::ir_channel_message_with_source, msg);
+}
+
+void poll_servers_command(const dpp::slashcommand_t &event) {
+    cpr::Response r = cpr::Get(cpr::Url{"https://hubapi.quakeworld.nu/v2/servers/mvdsv"});
+    if (r.status_code == 200) {
+        try {
+            nlohmann::json data = nlohmann::json::parse(r.text);
+            dpp::embed server_embed = dpp::embed()
+                .set_color(0x6b5747);
+            for (const auto &server : data) {
+                if (server.contains("mode") && server.contains("settings")) {
+                    server_embed.set_title(server["mode"].get<std::string>() + " on " + server["settings"]["map"].get<std::string>());
+                }
+            }
+            dpp::message msg;
+            msg.add_embed(server_embed);
+            event.reply(dpp::interaction_response_type::ir_channel_message_with_source, msg);
+        } catch (const std::exception &e) {
+            event.reply("Error querying master server.");
+        }
+    } else {
+        event.reply("Error querying master server.");
+    }
 }

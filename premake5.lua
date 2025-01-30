@@ -6,7 +6,7 @@ kind("ConsoleApp")
 language("C++")
 targetdir("bin/")
 
-links({ "dpp" })
+links({ "dpp", "cpr", "curl" })
 
 files({
 	"src/**.h",
