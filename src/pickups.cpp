@@ -91,7 +91,8 @@ void poll_servers_command(const dpp::slashcommand_t &event) {
             for (const auto &player : server["players"]) {
                 players << player["name"].get<std::string>() << "\n";
             }
-            server_embed.add_field("Players", players.str());
+            server_embed.add_field("Players", players.str(), true);
+            server_embed.add_field("Location", server["geo"]["city"].get<std::string>() + ", " + server["geo"]["country"].get<std::string>(), true);
 
             // Create buttons
             dpp::component row;
@@ -151,7 +152,9 @@ void handle_server_navigation(const dpp::button_click_t &event) {
             for (const auto &player : server["players"]) {
                 players << player["name"].get<std::string>() << "\n";
             }
-            server_embed.add_field("Players", players.str());
+            server_embed.add_field("Players", players.str(), true);
+            server_embed.add_field("Location", server["geo"]["city"].get<std::string>() + ", " + server["geo"]["country"].get<std::string>(), true);
+
 
             // Update buttons
             dpp::component row;
