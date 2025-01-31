@@ -1,3 +1,4 @@
+#include <dpp/appcommand.h>
 #include <dpp/dpp.h>
 #include <cstdlib>
 #include <dpp/presence.h>
@@ -9,6 +10,10 @@ int main() {
 
     bot.global_bulk_command_delete();
 
+    bot.on_button_click([](const dpp::button_click_t &event) {
+        event.reply(dpp::ir_deferred_update_message, "");
+        handle_server_navigation(event);
+    });
 
     bot.on_slashcommand([](auto event) {
         if (event.command.get_command_name() == "setnick") {

@@ -3,6 +3,7 @@
 #include <dpp/appcommand.h>
 #include <dpp/nlohmann/json_fwd.hpp>
 #include <iostream>
+#include <sstream>
 
 void start_pickup_command(const dpp::slashcommand_t &event) {
     if (event.get_parameter("gamemode").valueless_by_exception()) {
@@ -64,23 +65,116 @@ void start_pickup_command(const dpp::slashcommand_t &event) {
     event.reply(dpp::interaction_response_type::ir_channel_message_with_source, msg);
 }
 
+static cpr::Response r;
+
 void poll_servers_command(const dpp::slashcommand_t &event) {
-    cpr::Response r = cpr::Get(cpr::Url{"https://hubapi.quakeworld.nu/v2/servers/mvdsv"});
+    r = cpr::Get(cpr::Url{"https://hubapi.quakeworld.nu/v2/servers/mvdsv"});
     if (r.status_code == 200) {
         try {
             nlohmann::json data = nlohmann::json::parse(r.text);
-            dpp::embed server_embed = dpp::embed()
-                .set_color(0x6b5747);
-            for (const auto &server : data) {
-                if (server.contains("mode") && server.contains("settings")) {
-                    server_embed.set_title(server["mode"].get<std::string>() + " on " + server["settings"]["map"].get<std::string>());
-                }
+            if (data.empty()) {
+                event.reply("No servers found.");
+                return;
             }
+
+            // Create the first server embed
+            size_t page = 0;
+            auto &server = data[page];
+
+            dpp::embed server_embed = dpp::embed()
+                .set_color(0x6b5747)
+                .set_title(server["mode"].get<std::string>() + " on " + server["settings"]["map"].get<std::string>())
+                .set_thumbnail("https://a.quake.world/mapshots/" + server["settings"]["map"].get<std::string>() + ".jpg")
+                .add_field("Status", server["status"]["description"].get<std::string>());
+
+            std::ostringstream players;
+            for (const auto &player : server["players"]) {
+                players << player["name"].get<std::string>() << "\n";
+            }
+            server_embed.add_field("Players", players.str());
+
+            // Create buttons
+            dpp::component row;
+            row.add_component(dpp::component()
+                .set_label("⬅️")
+                .set_type(dpp::cot_button)
+                .set_style(dpp::cos_primary)
+                .set_id("prev_" + std::to_string(page)));
+
+            row.add_component(dpp::component()
+                .set_label("➡️")
+                .set_type(dpp::cot_button)
+                .set_style(dpp::cos_primary)
+                .set_id("next_" + std::to_string(page)));
+
             dpp::message msg;
+            msg.set_content("`" + server["address"].get<std::string>() + "`");
             msg.add_embed(server_embed);
+            msg.add_component(row);
+
             event.reply(dpp::interaction_response_type::ir_channel_message_with_source, msg);
         } catch (const std::exception &e) {
-            event.reply("Error querying master server.");
+            event.reply("Error parsing response.");
+        }
+    } else {
+        event.reply("Error querying master server.");
+    }
+}
+
+void handle_server_navigation(const dpp::button_click_t &event) {
+    std::string id = event.custom_id;
+    size_t page = std::stoi(id.substr(5));
+
+    if (r.status_code == 200) {
+        try {
+            nlohmann::json data = nlohmann::json::parse(r.text);
+            if (data.empty()) {
+                event.reply("No servers found.");
+                return;
+            }
+
+            if (id.rfind("prev_", 0) == 0 && page > 0) {
+                page--;
+            } else if (id.rfind("next_", 0) == 0 && page < data.size() - 1) {
+                page++;
+            }
+
+            auto &server = data[page];
+
+            dpp::embed server_embed = dpp::embed()
+                .set_color(0x6b5747)
+                .set_title(server["mode"].get<std::string>() + " on " + server["settings"]["map"].get<std::string>())
+                .set_thumbnail("https://a.quake.world/mapshots/" + server["settings"]["map"].get<std::string>() + ".jpg")
+                .add_field("Status", server["status"]["description"].get<std::string>());
+
+            std::ostringstream players;
+            for (const auto &player : server["players"]) {
+                players << player["name"].get<std::string>() << "\n";
+            }
+            server_embed.add_field("Players", players.str());
+
+            // Update buttons
+            dpp::component row;
+            row.add_component(dpp::component()
+                .set_label("⬅️")
+                .set_type(dpp::cot_button)
+                .set_style(dpp::cos_primary)
+                .set_id("prev_" + std::to_string(page)));
+
+            row.add_component(dpp::component()
+                .set_label("➡️")
+                .set_type(dpp::cot_button)
+                .set_style(dpp::cos_primary)
+                .set_id("next_" + std::to_string(page)));
+
+            dpp::message msg;
+            msg.set_content("`" + server["address"].get<std::string>() + "`");
+            msg.add_embed(server_embed);
+            msg.add_component(row);
+
+            event.edit_response(msg);
+        } catch (const std::exception &e) {
+            event.reply("Error parsing response.");
         }
     } else {
         event.reply("Error querying master server.");

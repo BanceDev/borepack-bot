@@ -7,3 +7,4 @@ void handle_set_command(const dpp::slashcommand_t &event);
 // pickups commands
 void start_pickup_command(const dpp::slashcommand_t &event);
 void poll_servers_command(const dpp::slashcommand_t &event);
+void handle_server_navigation(const dpp::button_click_t &event);
